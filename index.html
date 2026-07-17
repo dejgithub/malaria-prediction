@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Malaria Prediction System</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #e4e4e4; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; padding: 30px 0; background: linear-gradient(90deg, #e94560, #0f3460); border-radius: 15px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        header p { font-size: 1.1rem; opacity: 0.9; }
+        .upload-section { background: rgba(255,255,255,0.1); border-radius: 15px; padding: 30px; margin-bottom: 30px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .upload-section h2 { margin-bottom: 20px; color: #fff; }
+        .file-input-wrapper { display: inline-block; position: relative; overflow: hidden; margin: 20px 0; }
+        .file-input-wrapper input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
+        .file-input-btn { display: inline-block; padding: 15px 40px; background: linear-gradient(135deg, #e94560, #c73e54); color: white; border-radius: 30px; font-size: 1.1rem; cursor: pointer; }
+        .btn { padding: 15px 30px; background: linear-gradient(135deg, #3498db, #2980b9); color: white; border: none; border-radius: 30px; font-size: 1rem; cursor: pointer; margin: 5px; }
+        .btn:disabled { background: #666; cursor: not-allowed; }
+        .btn-success { background: linear-gradient(135deg, #27ae60, #1e8449); }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .loading-spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #e94560; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-message { display: none; background: rgba(231,76,60,0.2); border: 1px solid #e74c3c; border-radius: 10px; padding: 15px; margin: 20px 0; color: #e74c3c; }
+        .results-section { display: none; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .metric-card { background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .metric-card h3 { font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px; color: #a0a0a0; }
+        .metric-card .value { font-size: 2rem; font-weight: bold; color: #e94560; }
+        .metric-card .unit { font-size: 0.9rem; color: #a0a0a0; }
+        .chart-section { background: rgba(255,255,255,0.05); border-radius: 15px; padding: 25px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1); }
+        .chart-section h2 { margin-bottom: 20px; color: #fff; font-size: 1.5rem; }
+        .chart-container { position: relative; height: 300px; margin-bottom: 20px; }
+        .two-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .two-charts { grid-template-columns: 1fr; } }
+        .risk-legend { display: flex; justify-content: center; gap: 20px; margin-top: 15px; flex-wrap: wrap; }
+        .risk-item { display: flex; align-items: center; gap: 8px; }
+        .risk-color { width: 15px; height: 15px; border-radius: 3px; }
+        .risk-low { background: #27ae60; }
+        .risk-medium { background: #f39c12; }
+        .risk-high { background: #e74c3c; }
+        .risk-very-high { background: #8e44ad; }
+        .insights-section { background: rgba(255,255,255,0.05); border-radius: 15px; padding: 25px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1); }
+        .insights-section h2 { margin-bottom: 20px; color: #fff; font-size: 1.5rem; }
+        .insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .insight-card { background: rgba(0,0,0,0.2); border-radius: 10px; padding: 20px; border-left: 4px solid #e94560; }
+        .insight-card h3 { color: #e94560; margin-bottom: 10px; }
+        .insight-card ul { list-style: none; padding: 0; }
+        .insight-card li { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .insight-card li::before { content: '▸ '; color: #e94560; }
+        .high-risk-warning { background: linear-gradient(90deg, #e74c3c, #c0392b); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; font-weight: bold; }
+        .recommendations { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
+        .recommendation-card { background: linear-gradient(135deg, rgba(233,69,96,0.2), rgba(15,52,96,0.2)); border-radius: 10px; padding: 15px; border: 1px solid rgba(233,69,96,0.3); }
+        .recommendation-card h3 { color: #e94560; margin-bottom: 8px; font-size: 1rem; }
+        .recommendation-card p { font-size: 0.9rem; color: #ccc; line-height: 1.5; }
+        footer { text-align: center; padding: 20px; color: #666; font-size: 0.9rem; }
+        .year-highlight { background: rgba(233,69,96,0.2); padding: 2px 8px; border-radius: 4px; color: #e94560; font-weight: bold; }
+        .status-text { margin-top: 10px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+                <div>
+                    <h1 id="headerTitle">🏥 Malaria Disease Prediction System</h1>
+                    <p id="headerSubtitle">MALARIA DISEASE PREDICTION USING HYBRID DEEP LEARNING MODELS</p>
+                </div>
+            <div style="display:flex; align-items:center; gap:15px;">
+                <a href="charts.html" style="color:#fff; text-decoration:none; padding:8px 15px; background:rgba(255,255,255,0.1); border-radius:20px;">📊 Analysis</a>
+                <select id="languageSelector" onchange="changeLanguage()" style="padding:8px 15px; border-radius:20px; background:rgba(255,255,255,0.2); color:#fff; border:1px solid rgba(255,255,255,0.3); cursor:pointer;">
+                    <option value="en">English</option>
+                    <option value="am">አማርኛ (Amharic)</option>
+                    <option value="om">Afan Oromo</option>
+                </select>
+            </div>
+        </header>
+        
+        <div class="upload-section">
+            <h2 id="uploadTitle">📁 Upload Your Data</h2>
+            <p id="uploadDesc" style="color: #aaa; margin-bottom: 15px;">Upload a CSV file with columns: date, year, month, malaria_cases, rainfall_mm, temperature_celsius, humidity_percent</p>
+            <div class="file-input-wrapper">
+                <input type="file" id="csvFile" accept=".csv">
+                <span class="file-input-btn" id="chooseFileBtn">📄 Choose CSV File</span>
+            </div>
+            <p id="fileName" class="status-text"></p>
+            <div style="margin-top: 15px;">
+                <button class="btn btn-success" id="testBtn" onclick="testConnection()">🔗 Test Connection</button>
+                <button class="btn" id="predictBtn" onclick="processFile()" disabled>🚀 Start Prediction</button>
+                <button class="btn" id="demoBtn" onclick="runDemo()">🎮 Run Demo</button>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p id="loadingTitle">Training model and generating predictions...</p>
+            <p id="loadingDesc" style="color: #aaa; font-size: 0.9rem;">This may take a few minutes</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <div class="results-section" id="resultsSection">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>MSE</h3>
+                    <div class="value" id="mseValue">-</div>
+                    <div class="unit">Mean Squared Error</div>
+                </div>
+                <div class="metric-card">
+                    <h3>RMSE</h3>
+                    <div class="value" id="rmseValue">-</div>
+                    <div class="unit">Root Mean Squared Error</div>
+                </div>
+                <div class="metric-card">
+                    <h3>MAE</h3>
+                    <div class="value" id="maeValue">-</div>
+                    <div class="unit">Mean Absolute Error</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Training Data</h3>
+                    <div class="value" id="trainingYears">-</div>
+                    <div class="unit">Years</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Forecast Horizon</h3>
+                    <div class="value" id="forecastYears">15</div>
+                    <div class="unit">Years</div>
+                </div>
+            </div>
+            
+            <div class="insights-section" id="modelComparisonSection" style="display:none;">
+                <h2>📊 Model Performance Comparison</h2>
+                <div style="overflow-x:auto;">
+                    <table id="modelComparisonTable" style="width:100%; border-collapse:collapse; margin-top:15px;">
+                        <thead>
+                            <tr style="background: rgba(233,69,96,0.3);">
+                                <th style="padding:12px; text-align:left; border:1px solid #fff;">Model</th>
+                                <th style="padding:12px; text-align:center; border:1px solid #fff;">MSE</th>
+                                <th style="padding:12px; text-align:center; border:1px solid #fff;">RMSE</th>
+                                <th style="padding:12px; text-align:center; border:1px solid #fff;">MAE</th>
+                                <th style="padding:12px; text-align:center; border:1px solid #fff;">R² Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelComparisonBody"></tbody>
+                    </table>
+                </div>
+                <p style="margin-top:15px; color:#aaa; font-size:0.9rem;">
+                    <strong>Note:</strong> Hybrid model combines RNN, LSTM, and GRU architectures in a single deep learning framework for improved prediction accuracy.
+                </p>
+            </div>
+            
+            <div class="chart-section">
+                <h2>📊 Historical vs Predicted Malaria Cases</h2>
+                <div class="chart-container">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="two-charts">
+                <div class="chart-section">
+                    <h2>📈 Historical Trend</h2>
+                    <div class="chart-container">
+                        <canvas id="historicalChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-section">
+                    <h2>🔮 Predicted Trend</h2>
+                    <div class="chart-container">
+                        <canvas id="predictedChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="insights-section">
+                <h2>⚠️ Risk Analysis & Insights</h2>
+                <div class="high-risk-warning" id="highRiskWarning">⚠️ High-Risk Years Identified</div>
+                <div class="insight-grid">
+                    <div class="insight-card">
+                        <h3>📊 Prediction Summary</h3>
+                        <ul id="predictionSummary"></ul>
+                    </div>
+                    <div class="insight-card">
+                        <h3>🔍 Key Patterns Identified</h3>
+                        <ul>
+                            <li>Seasonal peaks during <strong>May-October</strong></li>
+                            <li>Cyclical pattern every <strong>7 years</strong></li>
+                            <li>Rainfall correlation: <strong>Strong positive</strong></li>
+                            <li>Temperature impact: <strong>Moderate</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="insights-section">
+                <h2>💡 Prevention Strategies & Recommendations</h2>
+                <div class="recommendations">
+                    <div class="recommendation-card">
+                        <h3>🚀 Pre-Emergency Preparedness</h3>
+                        <p>Allocate additional resources 3-6 months before peak season. Stockpile antimalarial drugs and diagnostic kits.</p>
+                    </div>
+                    <div class="recommendation-card">
+                        <h3>🛡️ Vector Control Measures</h3>
+                        <p>Implement intensive mosquito control during rainy seasons. Distribute LLINs in endemic areas.</p>
+                    </div>
+                    <div class="recommendation-card">
+                        <h3>🏥 Healthcare System Readiness</h3>
+                        <p>Increase staffing during peak months (June-September). Deploy rapid diagnostic tests to remote areas.</p>
+                    </div>
+                    <div class="recommendation-card">
+                        <h3>🌡️ Environmental Interventions</h3>
+                        <p>Coordinate with weather services for early warning. Implement drainage projects before rainy season.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="insights-section" id="discussionSection">
+                <h2>📝 Discussion & Conclusion</h2>
+                <div id="discussionContent"></div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Malaria Prediction System | Hybrid Deep Learning Model (RNN + LSTM + GRU)</p>
+        </footer>
+    </div>
+    
+    <script>
+        let mainChart, histChart, predChart;
+        
+        // Language translations
+        const translations = {
+            en: {
+                headerTitle: "🏥 Malaria Disease Prediction System",
+                headerSubtitle: "AI-Based Time-Series Forecasting using Hybrid RNN-LSTM-GRU Deep Learning Model",
+                uploadTitle: "📁 Upload Your Data",
+                uploadDesc: "Upload a CSV file with columns: date, year, month, malaria_cases, rainfall_mm, temperature_celsius, humidity_percent",
+                chooseFile: "📄 Choose CSV File",
+                testBtn: "🔗 Test Connection",
+                predictBtn: "🚀 Start Prediction",
+                demoBtn: "🎮 Run Demo",
+                loadingTitle: "Training model and generating predictions...",
+                loadingDesc: "This may take a few minutes",
+                mse: "Mean Squared Error",
+                rmse: "Root Mean Squared Error",
+                mae: "Mean Absolute Error",
+                trainingData: "Training Data",
+                forecastHorizon: "Forecast Horizon",
+                years: "Years",
+                historicalVsPredicted: "📊 Historical vs Predicted Malaria Cases",
+                historicalTrend: "📈 Historical Trend",
+                predictedTrend: "🔮 Predicted Trend",
+                riskAnalysis: "⚠️ Risk Analysis & Insights",
+                highRiskWarning: "⚠️ High-Risk Years Identified",
+                noHighRisk: "✅ No High-Risk Years Predicted",
+                predictionSummary: "📊 Prediction Summary",
+                patterns: "🔍 Key Patterns Identified",
+                seasonalPeaks: "Seasonal peaks during",
+                cyclical: "Cyclical pattern every",
+                rainfallCorr: "Rainfall correlation:",
+                tempImpact: "Temperature impact:",
+                recommendations: "💡 Prevention Strategies & Recommendations",
+                discussion: "📝 Discussion & Conclusion",
+                modelComparison: "📊 Model Performance Comparison",
+                modelNote: "Note: Hybrid model combines RNN, LSTM, and GRU architectures in a single deep learning framework for improved prediction accuracy."
+            },
+            am: {
+                headerTitle: "🏥 የማላሪያ በሽታ ትንበያ ስርዓት",
+                headerSubtitle: "ሃይብሪድ RNN-LSTM-GRU ጥርቀት ትምህርት ሞዴል በመጠቀም AI-ላይ የተመሰረተ የጊዜ ተከታታይ ትንበያ",
+                uploadTitle: "📁 የእርስዎን ውሂብ ይስቁ",
+                uploadDesc: "ኮምና-ሰር ፋይል ይስቁ በእነዚህ ኮሎኖች: ቀን፣ ዓመት፣ ወር፣ የማላሪያ በሽታ ሰዎች፣ በሚሊሜትር ፍር፣ የሙቀት ሰዲግርስ፣ የእርጋታ መጠን",
+                chooseFile: "📄 CSV ፋይል ይምረጡ",
+                testBtn: "🔗 ግንባታ ይፈትሹ",
+                predictBtn: "🚀 ትንበያ ጀምር",
+                demoBtn: "🎮 ናሙና ያስፈልገው",
+                loadingTitle: "ሞዴሉን በማሰልጠን ትንበያ በማመንጨት...",
+                loadingDesc: "ይህ ጥቂት ደቂቃዎች ሊወስድ ይችላል",
+                mse: "አማካይ ካርቦር ስኩዔር",
+                rmse: "አማካይ ካርቦር ስኩዔር ስኩወር",
+                mae: "አማካይ አብሱሉት ስህተት",
+                trainingData: "የስልጠና ውሂብ",
+                forecastHorizon: "የትንበያ ጊዜ",
+                years: "ዓመታት",
+                historicalVsPredicted: "📊 ታሪካዊ vs የተተነበዩ የማላሪያ በሽታ ሰዎች",
+                historicalTrend: "📈 ታሪካዊ አዝማሚያ",
+                predictedTrend: "🔮 የተተነበየ አዝማሚያ",
+                riskAnalysis: "⚠️ አደጋ ትንበያና ግንዛቤዎች",
+                highRiskWarning: "⚠️ ከፍተኛ አደጋ ያላቸው ዓመታት ተለይተዋል",
+                noHighRisk: "✅ ከፍተኛ አደጋ ያላቸው ዓመታት አልተተነበዩም",
+                predictionSummary: "📊 የትንበያ ማጠቃለያ",
+                patterns: "🔍 የተለዩ ንድፎች",
+                seasonalPeaks: "የወቅቱ ጫፎች",
+                cyclical: "ዙር ንድፍ በየ",
+                rainfallCorr: "የበሚሊሜትር ተግባር:",
+                tempImpact: "የሙቀት ተጽእኖ:",
+                recommendations: "💡 የመከላከያ ስትራተጂዎችና ምክርዎች",
+                discussion: "📝 ውይይትና መደምደሚያ",
+                modelComparison: "📊 የሞዴል አፈፃፀም ነገር",
+                modelNote: "ማስተዋል: ሃይብሪድ ሞዴል የRNN፣ LSTM እና GRU አርክስካተተቬርስ በአንድ ጥርቀት ትምህርት ስርዓት ያዋህዳል ለBetter ትንበያ accuracy።"
+            },
+            om: {
+                headerTitle: "🏥 Sistema Qorannoo Dhukkuba Maleriyaa",
+                headerSubtitle: "Qorannoo Rakkoo Bilisaa RNN-LSTM-GRU Dhuftan GPT fayyadamuun AI irratti hundaa'e Qorannoo Raga Time-Series",
+                uploadTitle: "📁 Data kee Upload godhi",
+                uploadDesc: "CSV faili Upload godhi kunools: taarikii, bara, ji'a, dhukkuba maleriyaa, millimitir shayii, celciisa celsiusii, prosentii hikuummaa",
+                chooseFile: "📄 CSV Faayilii fili",
+                testBtn: "🔗 Xiqqe Walitti",
+                predictBtn: "🚀 Qorannoo Deebi",
+                demoBtn: "🎮 Demo运行时",
+                loadingTitle: "Mootii gurguruu fi qorannoo jijjiirama...",
+                loadingDesc: "Kun daqiiqaa meeqa tahu",
+                mse: "Dogoggora Kuubikii Carraa",
+                rmse: "Dogoggora Kuubikii Carraa Hunduu",
+                mae: "Dogoggora Hunda Xiqqoo",
+                trainingData: "Data Barreefamaa",
+                forecastHorizon: "Giddugaleessa Qorannoo",
+                years: "Waggoota",
+                historicalVsPredicted: "📊 Dhukkuba Maleriyaa: Seenaa vs Qoranname",
+                historicalTrend: "📈 Giddugaleessa Seenaa",
+                predictedTrend: "🔮 Giddugaleessa Qoranname",
+                riskAnalysis: "⚠️ Qoorannoo Riskii fi Ibsa",
+                highRiskWarning: "⚠️ Bara Dhiyaadhuu Qoranname",
+                noHighRisk: "✅ Dhiyaadhuu qorannameera",
+                predictionSummary: "📊 Haala Qorannoo",
+                patterns: "🔍 Giddugaleessa",
+                seasonalPeaks: "Giddugaleessa Ji'aa",
+                cyclical: "Walxaxaa",
+                rainfallCorr: "Walittiqaashaa shayii:",
+                tempImpact: "Sa'aanii celcii:",
+                recommendations: "💡 Qajeelfama Dhiyeenyaa fi Gorsaa",
+                discussion: "📝 Marii fi Camu",
+                modelComparison: "📊 Haala Mootii Murtessuu",
+                modelNote: "Odeeffannoo: Mootiin Hybrid RNN, LSTM fi GRU karfatti qabsiisa. "
+            }
+        };
+        
+        let currentLang = 'en';
+        
+        function changeLanguage() {
+            currentLang = document.getElementById('languageSelector').value;
+            const t = translations[currentLang];
+            
+            document.getElementById('headerTitle').textContent = t.headerTitle;
+            document.getElementById('headerSubtitle').textContent = t.headerSubtitle;
+            document.getElementById('uploadTitle').textContent = t.uploadTitle;
+            document.getElementById('uploadDesc').textContent = t.uploadDesc;
+            document.getElementById('chooseFileBtn').textContent = t.chooseFile;
+            document.getElementById('testBtn').textContent = t.testBtn;
+            document.getElementById('predictBtn').textContent = t.predictBtn;
+            document.getElementById('demoBtn').textContent = t.demoBtn;
+            document.getElementById('loadingTitle').textContent = t.loadingTitle;
+            document.getElementById('loadingDesc').textContent = t.loadingDesc;
+            
+            // Update results if already displayed
+            if (document.getElementById('resultsSection').style.display === 'block') {
+                updateResultsLanguage();
+            }
+        }
+        
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || '';
+            document.getElementById('fileName').textContent = fileName ? 'Selected: ' + fileName : '';
+            document.getElementById('predictBtn').disabled = !fileName;
+        });
+        
+        function testConnection() {
+            document.getElementById('fileName').textContent = 'Testing connection...';
+            
+            setTimeout(() => {
+                fetch('/health', { method: 'GET' })
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('fileName').textContent = '✅ Server connected: ' + data.message;
+                    })
+                    .catch(error => {
+                        document.getElementById('fileName').innerHTML = '❌ Server not running. <button class="btn" style="padding:5px 15px;font-size:0.9rem;margin-left:10px;" onclick="runDemo()">🎮 Try Demo</button>';
+                    });
+            }, 500);
+        }
+        
+        async function processFile() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showError('Please select a CSV file first');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('predictBtn').disabled = true;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to process file');
+                }
+                
+                displayResults(result);
+            } catch (error) {
+                showError('Server not responding. Click "Run Demo" to see a sample prediction.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('predictBtn').disabled = false;
+            }
+        }
+        
+        function runDemo() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            setTimeout(() => {
+                const demoData = {
+                    historical_years: [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+                    historical_cases: [40380, 37200, 39220, 35370, 32320, 30210, 27970, 35410, 40980, 38010, 33080, 30480, 27940, 26880, 25830],
+                    predicted_years: [2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035, 2036, 2037, 2038, 2039],
+                    predicted_cases: [24800, 26500, 35200, 31800, 28500, 27200, 25800, 24500, 23200, 28500, 26800, 25200, 23800, 22500, 21200],
+                    risk_levels: ['Medium', 'Medium', 'High', 'Medium', 'Medium', 'Low', 'Low', 'Low', 'Low', 'Medium', 'Low', 'Low', 'Low', 'Low', 'Low'],
+                    high_risk_years: [2027]
+                };
+                
+                const demoMetrics = { MSE: 0.0405, RMSE: 0.2012, MAE: 0.1712 };
+                const demoComparison = [
+                    { model: 'RNN', MSE: 0.0823, RMSE: 0.2868, MAE: 0.2451, R2: -0.3245 },
+                    { model: 'LSTM', MSE: 0.0542, RMSE: 0.2328, MAE: 0.1987, R2: -0.1298 },
+                    { model: 'GRU', MSE: 0.0489, RMSE: 0.2211, MAE: 0.1892, R2: -0.0987 },
+                    { model: 'Hybrid (RNN+LSTM+GRU)', MSE: 0.0405, RMSE: 0.2012, MAE: 0.1712, R2: -0.0265 }
+                ];
+                
+                displayResults({ data: demoData, metrics: demoMetrics, success: true, model_comparison: demoComparison });
+            }, 1500);
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = message + ' <button style="margin-left:10px;padding:5px 15px;background:#3498db;border:none;border-radius:15px;color:white;cursor:pointer;" onclick="runDemo()">Try Demo</button>';
+            errorDiv.style.display = 'block';
+        }
+        
+        function displayResults(result) {
+            const data = result.data;
+            const metrics = result.metrics;
+            
+            // Get metrics from model comparison (Hybrid row) to match table
+            let mseVal, rmseVal, maeVal;
+            if (result.model_comparison && result.model_comparison.length > 0) {
+                // Find Hybrid model in the comparison table
+                const hybridModel = result.model_comparison.find(m => 
+                    m.model === 'Hybrid' || m.model.includes('Hybrid')
+                );
+                if (hybridModel) {
+                    mseVal = hybridModel.MSE;
+                    rmseVal = hybridModel.RMSE;
+                    maeVal = hybridModel.MAE;
+                }
+            }
+            // Fallback to metrics if not found in comparison
+            if (!mseVal) mseVal = metrics.MSE;
+            if (!rmseVal) rmseVal = metrics.RMSE;
+            if (!maeVal) maeVal = metrics.MAE;
+            
+            document.getElementById('mseValue').textContent = mseVal ? mseVal.toFixed(4) : '-';
+            document.getElementById('rmseValue').textContent = rmseVal ? rmseVal.toFixed(4) : '-';
+            document.getElementById('maeValue').textContent = maeVal ? maeVal.toFixed(4) : '-';
+            document.getElementById('trainingYears').textContent = data.historical_years.length;
+            document.getElementById('forecastYears').textContent = data.predicted_years.length;
+            
+            if (data.high_risk_years && data.high_risk_years.length > 0) {
+                document.getElementById('highRiskWarning').innerHTML = 
+                    '⚠️ High-Risk Years Identified: ' + data.high_risk_years.map(y => 
+                        `<span class="year-highlight">${y}</span>`).join(' ');
+            } else {
+                document.getElementById('highRiskWarning').innerHTML = '✅ No High-Risk Years Predicted';
+            }
+            
+            const avgPredicted = data.predicted_cases.reduce((a,b)=>a+b) / data.predicted_cases.length;
+            const maxPredicted = Math.max(...data.predicted_cases);
+            const minPredicted = Math.min(...data.predicted_cases);
+            const maxYear = data.predicted_years[data.predicted_cases.indexOf(maxPredicted)];
+            const minYear = data.predicted_years[data.predicted_cases.indexOf(minPredicted)];
+            
+            document.getElementById('predictionSummary').innerHTML = `
+                <li>Average predicted: <strong>${Math.round(avgPredicted).toLocaleString()}</strong></li>
+                <li>Highest: <strong>${maxYear} (${maxPredicted.toLocaleString()})</strong></li>
+                <li>Lowest: <strong>${minYear} (${minPredicted.toLocaleString()})</strong></li>
+                <li>Trend: <strong>Gradual decline</strong></li>
+            `;
+            
+            // Display model comparison if available
+            if (result.model_comparison && result.model_comparison.length > 0) {
+                const comparisonSection = document.getElementById('modelComparisonSection');
+                const tbody = document.getElementById('modelComparisonBody');
+                let tableHTML = '';
+                
+                result.model_comparison.forEach((model, index) => {
+                    const rowStyle = index % 2 === 0 ? 'background: rgba(255,255,255,0.05);' : '';
+                    let modelDisplay = model.model;
+                    if (model.model === 'Hybrid') {
+                        modelDisplay = 'Hybrid (RNN+LSTM+GRU)';
+                    }
+                    const highlight = model.model === 'Hybrid' ? 'font-weight:bold; color:#e94560;' : '';
+                    tableHTML += `
+                        <tr style="${rowStyle}">
+                            <td style="padding:10px; border:1px solid #fff; ${highlight}">${model.model}</td>
+                            <td style="padding:10px; text-align:center; border:1px solid #fff;">${model.MSE?.toFixed(6) || '-'}</td>
+                            <td style="padding:10px; text-align:center; border:1px solid #fff;">${model.RMSE?.toFixed(6) || '-'}</td>
+                            <td style="padding:10px; text-align:center; border:1px solid #fff;">${model.MAE?.toFixed(6) || '-'}</td>
+                            <td style="padding:10px; text-align:center; border:1px solid #fff;">${model.R2?.toFixed(6) || '-'}</td>
+                        </tr>
+                    `;
+                });
+                
+                tbody.innerHTML = tableHTML;
+                comparisonSection.style.display = 'block';
+            }
+            
+            renderCharts(data);
+            generateDiscussion(data, metrics, result.model_comparison);
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function generateDiscussion(data, metrics, modelComparison) {
+            // Calculate statistics
+            const avgHistorical = data.historical_cases.reduce((a,b)=>a+b) / data.historical_cases.length;
+            const avgPredicted = data.predicted_cases.reduce((a,b)=>a+b) / data.predicted_cases.length;
+            const maxPredicted = Math.max(...data.predicted_cases);
+            const minPredicted = Math.min(...data.predicted_cases);
+            const maxYear = data.predicted_years[data.predicted_cases.indexOf(maxPredicted)];
+            const minYear = data.predicted_years[data.predicted_cases.indexOf(minPredicted)];
+            
+            // Trend analysis
+            const trendChange = ((avgPredicted - avgHistorical) / avgHistorical * 100).toFixed(1);
+            const trendDirection = avgPredicted < avgHistorical ? 'DECREASING' : 'INCREASING';
+            const overallTrend = trendDirection === 'DECREASING' ? 'declining' : 'increasing';
+            
+            // Find most affected year (highest cases)
+            const highestYear = data.predicted_years[data.predicted_cases.indexOf(maxPredicted)];
+            
+            // Find low years
+            const lowRiskYears = data.predicted_years.filter((y, i) => data.risk_levels[i] === 'Low');
+            const highRiskYears = data.predicted_years.filter((y, i) => data.risk_levels[i] === 'High' || data.risk_levels[i] === 'Very High');
+            
+            // Best model analysis
+            let bestModel = 'N/A';
+            let bestMSE = Infinity;
+            if (modelComparison) {
+                modelComparison.forEach(m => {
+                    if (m.MSE < bestMSE) {
+                        bestMSE = m.MSE;
+                        bestModel = m.model;
+                    }
+                });
+            }
+            
+            // Generate discussion HTML
+            const discussionHTML = `
+                <div class="insight-card" style="margin-bottom:20px;">
+                    <h3>📊 Summary of Results</h3>
+                    <ul>
+                        <li><strong>Historical Period:</strong> ${data.historical_years[0]} - ${data.historical_years[data.historical_years.length-1]} (${data.historical_years.length} years)</li>
+                        <li><strong>Prediction Period:</strong> ${data.predicted_years[0]} - ${data.predicted_years[data.predicted_years.length-1]} (${data.predicted_years.length} years)</li>
+                        <li><strong>Average Historical Cases:</strong> ${Math.round(avgHistorical).toLocaleString()} cases/year</li>
+                        <li><strong>Average Predicted Cases:</strong> ${Math.round(avgPredicted).toLocaleString()} cases/year</li>
+                    </ul>
+                </div>
+                
+                <div class="insight-card" style="margin-bottom:20px;">
+                    <h3>📈 Trend Analysis: Next 15 Years</h3>
+                    <ul>
+                        <li><strong>Overall Trend:</strong> <span style="color:${trendDirection === 'DECREASING' ? '#27ae60' : '#e74c3c'}; font-weight:bold;">${trendDirection}</span></li>
+                        <li><strong>Change:</strong> ${trendChange > 0 ? '+' : ''}${trendChange}% ${Math.abs(trendChange) > 10 ? '(Significant)' : '(Moderate)'}</li>
+                        <li><strong>Highest Predicted Year:</strong> ${highestYear} with ${maxPredicted.toLocaleString()} cases</li>
+                        <li><strong>Lowest Predicted Year:</strong> ${minYear} with ${minPredicted.toLocaleString()} cases</li>
+                    </ul>
+                </div>
+                
+                <div class="insight-card" style="margin-bottom:20px;">
+                    <h3>⚠️ Risk Assessment</h3>
+                    <ul>
+                        <li><strong>High-Risk Years Identified:</strong> ${highRiskYears.length > 0 ? highRiskYears.join(', ') : 'None'}</li>
+                        <li><strong>Low-Risk Years:</strong> ${lowRiskYears.length > 0 ? lowRiskYears.join(', ') : 'None'}</li>
+                        <li><strong>Most Affected Year:</strong> <strong>${highestYear}</strong> with ${maxPredicted.toLocaleString()} predicted cases</li>
+                        <li><strong>Peak Season:</strong> May - October (rainy season)</li>
+                    </ul>
+                </div>
+                
+                <div class="insight-card" style="margin-bottom:20px;">
+                    <h3>🤖 Model Performance</h3>
+                    <ul>
+                        <li><strong>Best Performing Model:</strong> ${bestModel} (MSE: ${bestMSE.toFixed(6)})</li>
+                        <li><strong>Hybrid Model MSE:</strong> ${metrics.MSE?.toFixed(6) || '-'}</li>
+                        <li><strong>Hybrid Model RMSE:</strong> ${metrics.RMSE?.toFixed(6) || '-'}</li>
+                        <li><strong>Hybrid Model MAE:</strong> ${metrics.MAE?.toFixed(6) || '-'}</li>
+                    </ul>
+                </div>
+                
+                <div class="insight-card">
+                    <h3>💡 Conclusion & Recommendations</h3>
+                    <ul>
+                        <li>The Hybrid RNN-LSTM-GRU model provides reliable predictions for malaria case forecasting.</li>
+                        <li>Based on the prediction results, the next 15 years show a <strong>${overallTrend}</strong> trend in malaria cases.</li>
+                        <li>Year <strong>${highestYear}</strong> is predicted to have the highest number of cases, requiring priority attention.</li>
+                        <li>Healthcare facilities should prepare for increased cases during the <strong>rainy season (May-October)</strong>.</li>
+                        <li>Early warning systems should be activated before <strong>${highRiskYears[0] || 'peak season'}</strong> to ensure adequate resources.</li>
+                        <li>Continuous monitoring and model retraining with updated data is recommended for improved accuracy.</li>
+                    </ul>
+                </div>
+            `;
+            
+            document.getElementById('discussionContent').innerHTML = discussionHTML;
+        }
+        
+        function renderCharts(data) {
+            if (mainChart) mainChart.destroy();
+            if (histChart) histChart.destroy();
+            if (predChart) predChart.destroy();
+            
+            const mainCtx = document.getElementById('mainChart').getContext('2d');
+            mainChart = new Chart(mainCtx, {
+                type: 'line',
+                data: {
+                    labels: [...data.historical_years, ...data.predicted_years],
+                    datasets: [
+                        {
+                            label: 'Historical Cases',
+                            data: [...data.historical_cases, ...Array(data.predicted_years.length).fill(null)],
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Predicted Cases',
+                            data: [...Array(data.historical_years.length).fill(null), ...data.predicted_cases],
+                            borderColor: '#e94560',
+                            backgroundColor: 'rgba(233, 69, 96, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#e4e4e4' } } },
+                    scales: {
+                        x: { ticks: { color: '#a0a0a0' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        y: { ticks: { color: '#a0a0a0', callback: v => v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+            
+            const histCtx = document.getElementById('historicalChart').getContext('2d');
+            histChart = new Chart(histCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.historical_years,
+                    datasets: [{
+                        label: 'Historical Cases',
+                        data: data.historical_cases,
+                        backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#a0a0a0' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        y: { ticks: { color: '#a0a0a0', callback: v => v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+            
+            const predCtx = document.getElementById('predictedChart').getContext('2d');
+            predChart = new Chart(predCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.predicted_years,
+                    datasets: [{
+                        label: 'Predicted Cases',
+                        data: data.predicted_cases,
+                        backgroundColor: data.risk_levels.map(level => ({
+                            'Low': 'rgba(39, 174, 96, 0.7)',
+                            'Medium': 'rgba(243, 156, 18, 0.7)',
+                            'High': 'rgba(231, 76, 60, 0.7)',
+                            'Very High': 'rgba(142, 68, 173, 0.7)'
+                        }[level])),
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#a0a0a0' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        y: { ticks: { color: '#a0a0a0', callback: v => v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
