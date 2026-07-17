@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
 from flask import (
     Flask,
     render_template,
@@ -16,10 +15,6 @@ from flask import (
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import traceback
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -519,6 +514,10 @@ def create_dashboard_data(historical_df, predictions_df, metrics):
 
 def create_charts(historical_df, predictions_df, train_losses, val_losses, model_results=None):
     """Generate visualization charts using actual training data"""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
     plt.figure(figsize=(14, 5))
     epochs_range = range(1, len(train_losses) + 1)
     plt.plot(epochs_range, train_losses, label="Training Loss", linewidth=2)
