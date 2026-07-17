@@ -89,7 +89,7 @@
             <div style="margin-top: 15px;">
                 <button class="btn btn-success" id="testBtn" onclick="testConnection()">🔗 Test Connection</button>
                 <button class="btn" id="predictBtn" onclick="processFile()" disabled>🚀 Start Prediction</button>
-                <button class="btn" id="demoBtn" onclick="runDemo()">🎮 Run Demo</button>
+
             </div>
         </div>
         
@@ -239,7 +239,6 @@
                 chooseFile: "📄 Choose CSV File",
                 testBtn: "🔗 Test Connection",
                 predictBtn: "🚀 Start Prediction",
-                demoBtn: "🎮 Run Demo",
                 loadingTitle: "Training model and generating predictions...",
                 loadingDesc: "This may take a few minutes",
                 mse: "Mean Squared Error",
@@ -273,7 +272,6 @@
                 chooseFile: "📄 CSV ፋይል ይምረጡ",
                 testBtn: "🔗 ግንባታ ይፈትሹ",
                 predictBtn: "🚀 ትንበያ ጀምር",
-                demoBtn: "🎮 ናሙና ያስፈልገው",
                 loadingTitle: "ሞዴሉን በማሰልጠን ትንበያ በማመንጨት...",
                 loadingDesc: "ይህ ጥቂት ደቂቃዎች ሊወስድ ይችላል",
                 mse: "አማካይ ካርቦር ስኩዔር",
@@ -307,7 +305,6 @@
                 chooseFile: "📄 CSV Faayilii fili",
                 testBtn: "🔗 Xiqqe Walitti",
                 predictBtn: "🚀 Qorannoo Deebi",
-                demoBtn: "🎮 Demo运行时",
                 loadingTitle: "Mootii gurguruu fi qorannoo jijjiirama...",
                 loadingDesc: "Kun daqiiqaa meeqa tahu",
                 mse: "Dogoggora Kuubikii Carraa",
@@ -348,7 +345,6 @@
             document.getElementById('chooseFileBtn').textContent = t.chooseFile;
             document.getElementById('testBtn').textContent = t.testBtn;
             document.getElementById('predictBtn').textContent = t.predictBtn;
-            document.getElementById('demoBtn').textContent = t.demoBtn;
             document.getElementById('loadingTitle').textContent = t.loadingTitle;
             document.getElementById('loadingDesc').textContent = t.loadingDesc;
             
@@ -374,7 +370,7 @@
                         document.getElementById('fileName').textContent = '✅ Server connected: ' + data.message;
                     })
                     .catch(error => {
-                        document.getElementById('fileName').innerHTML = '❌ Server not running. <button class="btn" style="padding:5px 15px;font-size:0.9rem;margin-left:10px;" onclick="runDemo()">🎮 Try Demo</button>';
+                        document.getElementById('fileName').textContent = '❌ Server not running.';
                     });
             }, 500);
         }
@@ -410,43 +406,16 @@
                 
                 displayResults(result);
             } catch (error) {
-                showError('Server not responding. Click "Run Demo" to see a sample prediction.');
+                showError('Server not responding. Please try again.');
             } finally {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('predictBtn').disabled = false;
             }
         }
         
-        function runDemo() {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('resultsSection').style.display = 'none';
-            document.getElementById('errorMessage').style.display = 'none';
-            
-            setTimeout(() => {
-                const demoData = {
-                    historical_years: [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
-                    historical_cases: [40380, 37200, 39220, 35370, 32320, 30210, 27970, 35410, 40980, 38010, 33080, 30480, 27940, 26880, 25830],
-                    predicted_years: [2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035, 2036, 2037, 2038, 2039],
-                    predicted_cases: [24800, 26500, 35200, 31800, 28500, 27200, 25800, 24500, 23200, 28500, 26800, 25200, 23800, 22500, 21200],
-                    risk_levels: ['Medium', 'Medium', 'High', 'Medium', 'Medium', 'Low', 'Low', 'Low', 'Low', 'Medium', 'Low', 'Low', 'Low', 'Low', 'Low'],
-                    high_risk_years: [2027]
-                };
-                
-                const demoMetrics = { MSE: 0.0405, RMSE: 0.2012, MAE: 0.1712 };
-                const demoComparison = [
-                    { model: 'RNN', MSE: 0.0823, RMSE: 0.2868, MAE: 0.2451, R2: -0.3245 },
-                    { model: 'LSTM', MSE: 0.0542, RMSE: 0.2328, MAE: 0.1987, R2: -0.1298 },
-                    { model: 'GRU', MSE: 0.0489, RMSE: 0.2211, MAE: 0.1892, R2: -0.0987 },
-                    { model: 'Hybrid (RNN+LSTM+GRU)', MSE: 0.0405, RMSE: 0.2012, MAE: 0.1712, R2: -0.0265 }
-                ];
-                
-                displayResults({ data: demoData, metrics: demoMetrics, success: true, model_comparison: demoComparison });
-            }, 1500);
-        }
-        
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
-            errorDiv.innerHTML = message + ' <button style="margin-left:10px;padding:5px 15px;background:#3498db;border:none;border-radius:15px;color:white;cursor:pointer;" onclick="runDemo()">Try Demo</button>';
+            errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
         
