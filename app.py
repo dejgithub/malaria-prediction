@@ -850,107 +850,16 @@ def download_file(filename):
     return send_file(f"output/{filename}", as_attachment=True)
 
 
-def generate_initial_predictions():
-    """Train model and generate predictions from included sample data on first startup."""
-    if os.path.exists("output/dashboard_data.json") and os.path.exists("models/hybrid_model.pt"):
-        print("Initial predictions already exist, skipping generation.")
-        return
-
-    sample_data = "data/malaria_data.csv"
-    if not os.path.exists(sample_data):
-        print(f"No sample data found at {sample_data}, skipping initial predictions.")
-        return
-
-    try:
-        print("=" * 50)
-        print("Generating initial predictions from sample data...")
-        print("=" * 50)
-
-        df = pd.read_csv(sample_data)
-        df = df.ffill().bfill()
-
-        X_train, X_test, y_train, y_test, processed_df, case_min, case_max, feature_cols = (
-            preprocess_data(df)
-        )
-
-        device = torch.device("cpu")
-        input_size = X_train.shape[2]
-        model = HybridRNNLSTMGRU(input_size=input_size).to(device)
-
-        X_train_tensor = torch.FloatTensor(X_train)
-        y_train_tensor = torch.FloatTensor(y_train)
-        train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-        train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode="min", factor=0.5, patience=5
-        )
-
-        best_val_loss = float("inf")
-        for epoch in range(60):
-            model.train()
-            for X_batch, y_batch in train_loader:
-                optimizer.zero_grad()
-                outputs = model(X_batch)
-                loss = criterion(outputs.squeeze(), y_batch)
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-
-            model.eval()
-            val_loss = 0.0
-            with torch.no_grad():
-                for x, y in zip(torch.FloatTensor(X_test), torch.FloatTensor(y_test)):
-                    x = x.unsqueeze(0)
-                    pred = model(x).squeeze().item()
-                    val_loss += (pred - y) ** 2
-            val_loss /= len(y_test)
-            scheduler.step(val_loss)
-
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                torch.save(
-                    {"model_state_dict": model.state_dict(), "val_loss": val_loss},
-                    "models/hybrid_model.pt",
-                )
-
-            if (epoch + 1) % 20 == 0:
-                print(f"  Epoch {epoch + 1}/60, Val Loss: {val_loss:.4f}")
-
-        model.load_state_dict(
-            torch.load("models/hybrid_model.pt", map_location="cpu", weights_only=True)[
-                "model_state_dict"
-            ]
-        )
-
-        metrics = evaluate_model(model, X_test, y_test)
-
-        predictions_df = generate_predictions(
-            model, processed_df, case_min, case_max, feature_cols
-        )
-
-        train_losses = []
-        val_losses = []
-        create_charts(processed_df, predictions_df, train_losses, val_losses, model_results=None)
-
-        dashboard_data = create_dashboard_data(processed_df, predictions_df, metrics)
-
-        predictions_df.to_csv("output/predictions_monthly.csv", index=False)
-        with open("output/metrics.json", "w") as f:
-            json.dump(metrics, f, indent=2)
-
-        print("=" * 50)
-        print("Initial predictions generated successfully!")
-        print("=" * 50)
-
-    except Exception as e:
-        print(f"ERROR generating initial predictions: {e}")
-        traceback.print_exc()
+def verify_startup():
+    """Verify required files exist on startup."""
+    required = ["output/dashboard_data.json", "output/metrics.json", "models/hybrid_model.pt"]
+    for f in required:
+        if not os.path.exists(f):
+            print(f"WARNING: Missing {f} — some features may not work.")
+    print("Startup check complete.")
 
 
-generate_initial_predictions()
+verify_startup()
 
 
 if __name__ == "__main__":

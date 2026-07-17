@@ -6,14 +6,11 @@ __pycache__/
 dist/
 build/
 
-models/*.pt
 models/*.keras
 models/model_history.json
 
 data/processed_data.npz
 data/scaler_params.json
-
-output/
 
 uploads/
 package-lock.json
