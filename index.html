@@ -719,6 +719,25 @@
                 }
             });
         }
+        
+        async function loadExistingResults() {
+            try {
+                const response = await fetch('/get-results');
+                if (!response.ok) return;
+                const result = await response.json();
+                if (result.success && result.data && result.metrics) {
+                    let modelComp = null;
+                    try {
+                        const analysisResp = await fetch('/api/analysis-data');
+                        const analysisData = await analysisResp.json();
+                        if (analysisData.success) modelComp = analysisData.model_comparison;
+                    } catch(e) {}
+                    displayResults({ data: result.data, metrics: result.metrics, success: true, model_comparison: modelComp });
+                }
+            } catch (e) {}
+        }
+        
+        loadExistingResults();
     </script>
 </body>
 </html>
