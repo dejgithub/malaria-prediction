@@ -2,6 +2,7 @@ import os
 import json
 import pandas as pd
 import numpy as np
+import joblib
 from flask import (
     Flask,
     render_template,
@@ -24,9 +25,10 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 os.makedirs("models", exist_ok=True)
 os.makedirs("output", exist_ok=True)
 
+MODEL_PATH = "models/hybrid_model.joblib"
+
 
 def _get_engine():
-    """Lazy-load torch ML engine only when training/prediction is needed."""
     import sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
     from ml_engine import (
@@ -35,17 +37,13 @@ def _get_engine():
         evaluate_model,
         generate_predictions,
         create_charts,
-        HybridRNNLSTMGRU,
     )
-    import torch
     return {
         "preprocess_data": preprocess_data,
         "train_and_compare_models": train_and_compare_models,
         "evaluate_model": evaluate_model,
         "generate_predictions": generate_predictions,
         "create_charts": create_charts,
-        "HybridRNNLSTMGRU": HybridRNNLSTMGRU,
-        "torch": torch,
     }
 
 
@@ -88,25 +86,21 @@ def get_analysis_data():
     try:
         with open("output/dashboard_data.json", "r") as f:
             dashboard_data = json.load(f)
-
         try:
             with open("output/model_comparison.json", "r") as f:
                 model_comparison = json.load(f)
         except:
             model_comparison = []
-
         try:
             with open("output/metrics.json", "r") as f:
                 metrics = json.load(f)
         except:
             metrics = {}
-
         try:
             predictions_df = pd.read_csv("output/predictions_monthly.csv")
             monthly_data = predictions_df.to_dict()
         except:
             monthly_data = {}
-
         return jsonify({
             "success": True,
             "dashboard_data": dashboard_data,
@@ -162,8 +156,6 @@ def upload_file():
         evaluate_model = engine["evaluate_model"]
         generate_predictions = engine["generate_predictions"]
         create_charts = engine["create_charts"]
-        HybridRNNLSTMGRU = engine["HybridRNNLSTMGRU"]
-        torch = engine["torch"]
 
         print("Preprocessing data...")
         X_train, X_test, y_train, y_test, processed_df, case_min, case_max, feature_cols = preprocess_data(df)
@@ -175,11 +167,8 @@ def upload_file():
             X_train, y_train, X_test, y_test, epochs=50
         )
 
-        print("Loading best hybrid model for predictions...")
-        model = HybridRNNLSTMGRU(input_size=X_train.shape[2]).to("cpu")
-        model.load_state_dict(
-            torch.load("models/hybrid_model.pt", map_location="cpu", weights_only=True)["model_state_dict"]
-        )
+        print("Loading best model for predictions...")
+        model = joblib.load(MODEL_PATH)
 
         metrics = evaluate_model(model, X_test, y_test)
         print(f"Metrics: {metrics}")
@@ -235,13 +224,10 @@ def get_results():
     try:
         with open("output/dashboard_data.json", "r") as f:
             data = json.load(f)
-
         with open("output/metrics.json", "r") as f:
             metrics = json.load(f)
-
         with open("output/model_comparison.json", "r") as f:
             model_comparison = json.load(f)
-
         return jsonify({"success": True, "data": data, "metrics": metrics, "model_comparison": model_comparison})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -253,7 +239,7 @@ def download_file(filename):
 
 
 def verify_startup():
-    required = ["output/dashboard_data.json", "output/metrics.json", "models/hybrid_model.pt"]
+    required = ["output/dashboard_data.json", "output/metrics.json"]
     for f in required:
         if not os.path.exists(f):
             print(f"WARNING: Missing {f}")
